@@ -1,0 +1,434 @@
+---
+title: "Práctica 2: Limpieza y análisis de datos"
+author: "Andoni Zengotitabengoa Fernandez & Lucas Farris"
+date: "23 de mayo de 2020"
+header-includes:
+  - \usepackage[spanish]{babel}
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(gridExtra)
+```
+
+
+## 1. Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
+Hemos elegido el dataset `Wine Quality Data Set´ de la fuente: [https://archive.ics.uci.edu/ml/datasets/wine+quality](https://archive.ics.uci.edu/ml/datasets/wine+quality)) que contiene datos de dos clases de vinos portugueses;vinho verde(white_wine), vinho tinto(red_whine). Los datos incluyen variables fisicoquímicas(acidez,pH, densidad, volatilidad ácida, contenido en alcohol, calidad, etc.), y una variable objetivo sensorial, que representa la calidad del vino.
+
+
+A la hora de elegir la base de datos hemos tenido en cuenta que es apropiada  para  responder a el ejercicio es decir proceder a la limpieza de datos  y realizar tres tipos de análisis de datos.
+En cuanto a la limpieza de datos el único inconveniente es la inexistencia de valores nulos, pero podemos aplicar otras tecnicas como reducción de la dimensionalidad, analisis de valores extremos,escalar las variables........
+
+En cuanto al análisis de datos pensamos que este es un dataset en el que podemos utilizar métodos supervisados ,no supervisados y tecnicas de regresión y/o estadisticas como contraste de hipotesis o análisis de la varianza.
+Así podemos unir las bases de datos para un tipo de análisis(clasificación,analisis de la varianza) y utilizarlas por separado para otro tipo(regresión)....
+ANALISIS DE DATOS:
+1-)Problemas no supervisados:
+Es decir cuando a partir de variables dependientes obtenemos información sobre la variable independiente(la cual disponemos para comprobaciones pero no para crear el modelo la cual nos da un plus de maniobrabilidad),ademas  los atributos on apropiados para su uso con el algoritmo kmeans.
+En este sentido el hecho de agrupar dos tipos de vinos con los mismos atributos nos permite realizar una agrupación sencilla sin perdernos en los detalles.
+
+Vamos a unir las dos bases de datos y vamos a intentar agrupar de forma que al vino blanco se le asigne un grupo y al vino tinto otro grupo utilizando el alogaritmo k_means.
+
+2)DESARROLLAR
+-Regresión(logistica o lineal)
+3)DESAROLLAR
+-CONTRASTE DE HIPOTESIS
+
+
+## 2. Integración y selección de los datos de interés a analizar.
+
+```{r include=TRUE, echo=TRUE}
+set.seed(1)
+# importamos los datos de los csv descargados
+red_wine_data <- read.csv('winequality-red.csv', sep = ";",  quote = "\"")
+white_wine_data <- read.csv('winequality-white.csv', sep = ";",  quote = "\"")
+# añadimos el tipo de vino como una nueva variable categórica
+red_wine_data$type <- "red"
+white_wine_data$type <- "white"
+#cantidad de registros disponibles para cada dataset
+nrow(red_wine_data)
+nrow(white_wine_data)
+
+# nombres de las columnas disponibles
+colnames(red_wine_data)
+# comprobaremos cuantos registros duplicados hay
+sum(duplicated(red_wine_data))
+sum(duplicated(white_wine_data))
+# eliminaremos los registros duplicados
+red_wine_data <- red_wine_data[!duplicated(red_wine_data),]
+white_wine_data<- white_wine_data[!duplicated(white_wine_data),]
+# juntamos los datos seleccionando el mismo número de muestras para cada tipo de vino
+white_wine_data<-white_wine_data[sample(nrow(x = white_wine_data), nrow(x = red_wine_data)), ]
+dataset <- rbind(red_wine_data,white_wine_data)
+red_wine_data$type <- as.factor(red_wine_data$type)
+nrow(red_wine_data)
+white_wine_data$type <- as.factor(white_wine_data$type)
+dataset$type <- as.factor(dataset$type)
+```
+
+
+
+```{r include=TRUE, echo=TRUE}
+# cantidad de registros disponibles
+nrow(dataset)
+```
+
+```{r include=TRUE, echo=TRUE}
+# miraremos ahora si hay variables numericas en los datos que tienen alta correlación para el data set conjunto y con las clases de vinos separadas
+corrplot(cor(dataset[,0:11], method='pearson'), type="upper", method='number', diag=FALSE)
+c
+```
+
+La correlación más alta (0.76) fue entre las variables _free.sulfur.dioxide_ y _total.sulfur.dioxide_ pero no es suficientemente alta para retirar una de las variables con confianza. La correlación más baja (-0.6) fue entre las variables _density_ y _alcohol_ pero tampoco es suficientemente baja para eliminar una de las variables.
+
+
+
+
+OBTENCION DATASET CON  VARIABLES REESCALADAS:
+Para realizar algunos de los análisis por ejemplo(agrupación) devemos transformar las variables e una escala común.
+ver (http://rpubs.com/ydmarinb/429761) .Vamos a utilizar la función escales que transforma el dominio de las variables en el intervalo $[0,1]$ utilizando la siguiente aplicación:
+$x.escalada=\frac {x−min(x)}{max(x)−min(x)}$
+Entonces:
+
+
+```{r}
+library("scales")
+white_wine_data_scaled<-white_wine_data
+white_wine_data_scaled$fixed.acidity<-rescale(white_wine_data$fixed.acidity)
+white_wine_data_scaled$volatile.acidity<-rescale(white_wine_data$volatile.acidity)
+white_wine_data_scaled$citric.acid<-rescale(white_wine_data$citric.acid)
+white_wine_data_scaled$residual.sugar<-rescale(white_wine_data$residual.sugar)
+white_wine_data_scaled$chlorides<-rescale(white_wine_data$chlorides)
+white_wine_data_scaled$free.sulfur.dioxide<-rescale(white_wine_data$free.sulfur.dioxide)
+white_wine_data_scaled$total.sulfur.dioxide<-rescale(white_wine_data$total.sulfur.dioxide)
+white_wine_data_scaled$density<-rescale(white_wine_data$density)
+white_wine_data_scaled$pH<-rescale(white_wine_data$pH)
+white_wine_data_scaled$sulphates<-rescale(white_wine_data$sulphates)
+white_wine_data_scaled$alcohol<-rescale(white_wine_data$alcohol)
+```
+
+```{r}
+library("scales")
+red_wine_data_scaled<-red_wine_data
+red_wine_data_scaled$fixed.acidity<-rescale(red_wine_data$fixed.acidity)
+red_wine_data_scaled$volatile.acidity<-rescale(red_wine_data$volatile.acidity)
+red_wine_data_scaled$citric.acid<-rescale(red_wine_data$citric.acid)
+red_wine_data_scaled$residual.sugar<-rescale(red_wine_data$residual.sugar)
+red_wine_data_scaled$chlorides<-rescale(red_wine_data$chlorides)
+red_wine_data_scaled$free.sulfur.dioxide<-rescale(red_wine_data$free.sulfur.dioxide)
+red_wine_data_scaled$total.sulfur.dioxide<-rescale(red_wine_data$total.sulfur.dioxide)
+red_wine_data_scaled$density<-rescale(red_wine_data$density)
+red_wine_data_scaled$pH<-rescale(red_wine_data$pH)
+red_wine_data_scaled$sulphates<-rescale(red_wine_data$sulphates)
+red_wine_data_scaled$alcohol<-rescale(red_wine_data$alcohol)
+```
+```{r}
+library("scales")
+dataset_scaled<-dataset
+dataset_scaled$fixed.acidity<-rescale(dataset$fixed.acidity)
+dataset_scaled$volatile.acidity<-rescale(dataset$volatile.acidity)
+dataset_scaled$citric.acid<-rescale(dataset$citric.acid)
+dataset_scaled$residual.sugar<-rescale(dataset$residual.sugar)
+dataset_scaled$chlorides<-rescale(dataset$chlorides)
+dataset_scaled$free.sulfur.dioxide<-rescale(dataset$free.sulfur.dioxide)
+dataset_scaled$total.sulfur.dioxide<-rescale(dataset$total.sulfur.dioxide)
+dataset_scaled$density<-rescale(dataset$density)
+dataset_scaled$pH<-rescale(dataset$pH)
+dataset_scaled$sulphates<-rescale(dataset$sulphates)
+dataset_scaled$alcohol<-rescale(dataset$alcohol)
+```
+Vamos a visualizar las variables:
+```{r}
+hist(dataset_scaled$fixed.acidity)
+hist(dataset_scaled$volatile.acidity)
+hist(dataset_scaled$citric.acid)
+hist(dataset_scaled$residual.sugar)
+hist(dataset_scaled$chlorides)
+hist(dataset_scaled$free.sulfur.dioxide)
+hist(dataset_scaled$density)
+hist(dataset_scaled$pH)
+hist(dataset_scaled$sulphates)
+hist(dataset_scaled$alcohol)
+```
+```{r}
+hist(red_wine_data_scaled$fixed.acidity)
+hist(red_wine_data_scaled$volatile.acidity)
+hist(red_wine_data_scaled$citric.acid)
+hist(red_wine_data_scaled$residual.sugar)
+hist(red_wine_data_scaled$chlorides)
+hist(red_wine_data_scaled$free.sulfur.dioxide)
+hist(red_wine_data_scaled$density)
+hist(red_wine_data_scaled$pH)
+hist(red_wine_data_scaled$sulphates)
+hist(red_wine_data_scaled$alcohol)
+```
+```{r}
+hist(white_wine_data_scaled$fixed.acidity)
+hist(white_wine_data_scaled$volatile.acidity)
+hist(white_wine_data_scaled$citric.acid)
+hist(white_wine_data_scaled$residual.sugar)
+hist(white_wine_data_scaled$chlorides)
+hist(white_wine_data_scaled$free.sulfur.dioxide)
+hist(white_wine_data_scaled$density)
+hist(white_wine_data_scaled$pH)
+hist(white_wine_data_scaled$sulphates)
+hist(white_wine_data_scaled$alcohol)
+```
+(mejorar el codigo para visualización)
+Analizamos los datos:.......
+
+
+
+
+
+```{r}
+#Introducimos librerias necesarias
+library(dplyr)
+library(cluster)
+library(clustertend)
+library(colorspace, pos = 17)
+```
+
+
+
+## 3. Limpieza de los datos.
+
+### 3.1. ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+
+```{r include=TRUE, echo=TRUE}
+# comprobaremos si algun valor de nuestro dataset es vacío
+any(is.na(dataset))
+```
+
+En nuestro dataset no tenemos ningún caso de valores vacíos. Tenemos casos de valores ceros en la variable _citric.acid_, pero era esperado que algunos vinos no tendrían niguna cantidad de ácido cítricon una vez que el ácido cítrico es un corrector de acidez que se utiliza cuando es necesario. Si tuvieramos valores vacíos en nuestras variables numéricas, los podríamos reeplazarlos por la media de la variable), o predecir con valores que tengan la máxima probabilidad de ser correctos (por ejemplo _miss forest_).
+
+
+### 3.2. Identificación y tratamiento de valores extremos.
+
+Para examinar visualmente las distribuciones de las variables numéricas crearemos boxplots  de cada una escalada para visualizar mejor las diferencias .
+```{r include=TRUE, echo=TRUE}
+ggplot(stack(dataset_scaled[,0:11]), aes(x = ind, y = values)) + 
+    geom_boxplot() + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+```{r include=TRUE, echo=TRUE}
+ggplot(stack(red_wine_data_scaled[,0:11]), aes(x = ind, y = values)) + 
+    geom_boxplot() + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+```{r include=TRUE, echo=TRUE}
+ggplot(stack(white_wine_data_scaled[,0:11]), aes(x = ind, y = values)) + 
+    geom_boxplot() + theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+El análisis de los valores extremos no es para nada trivial,Vemos que casi todos los atributos tienen valores extremos podriamos retirarlos sin mas? NO.
+Tenemos  libertad para realizar tres analisis diferentes por tanto el tratamiento de los valores extremos será  diferente dependiendo del analisis, a decir verdad el análisis de los valores extremos será determinante a la hora de escoger los análisis a realizar. Lo que realmente vamos a realizar es adaptarnos a la existencia de valores extremos y porque:
+```{r}
+soft_outlier_detection <- function(data) {
+   lowerq = quantile(data, na.rm = TRUE)[2]
+   upperq = quantile(data, na.rm = TRUE)[4]
+   iqr = upperq - lowerq 
+   threshold_upper = (iqr) + upperq
+   threshold_lower = lowerq - (iqr)
+   data > threshold_upper | data <  threshold_lower 
+}
+clean_dataset <- dataset[rowSums(sapply(dataset[,0:11], soft_outlier_detection), na.rm = TRUE) > 0, ]
+(nrow(dataset)-nrow(clean_dataset))/nrow(dataset)
+```
+Porque vemos que si queremos eliminar los valores extremos nos tenemos que deshacer de entre el del  55% de las muestras, en el caso de limpiarlos por separado la perdida sería menor 33% pero continuaría siendo excesiva.
+Esta gran cantidad de outliers no se purede atribuir a errores de medición y elimibarlos.Por ejemplo los valores de pH(acidez)(pH=-log(H+)) (ver summary variables ) se encuentran entre 2 y 4 lo que es absolutamente normal. Sería de extrañar un valor de 10-14 muy básico  o de 0 muy ácido,ya 20 estaría fuera del rango de la escala de pH (0-14).
+Analizando los boxplots   no parece que sean tantos pero estos se acumulan atributo por atributo desintegrando el dataset.
+En este caso pensamos que  el  valor extremo en un atributo  implica un handicap para el vino pero  no determina  de por si la calidad del vino,buena o mala(en ese caso un modelo de mineria de datos sería trivial) una vez que un % muy grande de  vinos seleccionados tienen algún valor extremo en alguno de sus atributos.
+
+Los valores extremos en  densidad o contenido de alcohol podrían diferenciar un vino por la positiva para  algunos paladares pero en estas dos variables   existen muy pocos valores extremos en estos dos casos conviene dejarlos simplemente por la cantidad de datos que existen y los tendremos en cuenta .
+
+Estos son los tres  anális y el tratamiento de los valores extremos,teniendo en cuenta las limitaciones de tiempo y el encuadramiento de ejercicicio :
+
+1)Agrupación (K_MEANS)  utilizando  dataset_scaled de los vinos blanco y  tinto donde no es necesario ni tendría sentido retirar tantas entradas con valores extremos
+
+2)Regresion logistica para la calidad del vino (blanco o tinto) utilizando uno de los datasets donde no es necesaria  la suposición de normalidad de las distribuciones por lo que en este caso no retiramos los valores extremos 
+3)Test de hipotesis utilizando los atributos  donde no se rechace la hipotesis de normalidad (densidad??, contenido en alcohol??, si fuera necesario utilizar alguno mas retirando los valores extremos con criterio ) donde utilizando tecnicas de reducción de la dimensionalidad(selección aleatoria de una muestra) limitaremos la existencia de los valores extremos 
+
+
+
+------DESARROLLAR MEJOR------
+```{r include=TRUE, echo=TRUE}
+
+p1 <- ggplot(dataset, aes(x=fixed.acidity)) + geom_histogram(aes(y=..density..), binwidth=0.3, colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666") + geom_vline(aes(xintercept=mean(fixed.acidity) + 3*sd(fixed.acidity)), color="red", linetype="dashed", size=1)
+
+p2 <- ggplot(dataset, aes(x=total.sulfur.dioxide)) + geom_histogram(aes(y=..density..), binwidth=10, colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666") + geom_vline(aes(xintercept=mean(total.sulfur.dioxide) + 3*sd(total.sulfur.dioxide)), color="red", linetype="dashed", size=1)
+
+p3 <- ggplot(dataset, aes(x=residual.sugar)) + geom_histogram(aes(y=..density..), binwidth=1, colour="black", fill="white") + geom_density(alpha=.2, fill="#FF6666") + geom_vline(aes(xintercept=mean(residual.sugar) + 3*sd(residual.sugar)), color="red", linetype="dashed", size=1)
+  
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+
+
+## 4. Análisis de los datos.
+
+### 4.1. Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
+
+
+
+
+### 4.2. Comprobación de la normalidad y homogeneidad de la varianza.
+
+```{r include=TRUE, echo=TRUE}
+# usaremos el test Shapiro-Wilk
+for (col in colnames(clean_dataset)[0:12]) {
+  test_data = clean_dataset[,col]
+  if (shapiro.test(test_data)$p < 0.05) {
+    print(paste('La variable', col, 'no es normal'))
+  } else {
+    print(paste('La variable', col, 'es normal'))
+  }
+}
+```
+
+Según el test ninguna de las variables es normal. Como ninguna de las variables es normal, para comprobar la homocedasticidad usaremos el test de Fligner-Killeen.
+
+```{r include=TRUE, echo=TRUE}
+if (fligner.test(clean_dataset[,0:12])$p.value < 0.05) {
+  print(paste('Las variables', 'no presentan homocedasticidad'))
+} else {
+  print(paste('La variable', 'presentan homocedasticidad'))
+}
+```
+
+### 4.3. Aplicación de pruebas estadísticas para comparar los grupos de datos. En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis, correlaciones, regresiones, etc. Aplicar al menos tres métodos de análisis diferentes.
+
+METODO SUPERVISADO PARA SEPARACION GRUPOS
+
+CLUSTERING (K_MEANS):
+
+```{r}
+#summary
+summary(red_wine_data)
+summary(white_wine_data)
+```
+
+Vemos que existen diferencias significativas en casi todos los atributos  entre los dos tipos de vinos por lo que deveriamos lograr agruparlos en diferentes grupos lo que se puede comprobar visualmente en los boxplots reescalados
+
+Vamos a retirar el atributo calidad una vez que estamos aplicando un método no supervisado.
+
+```{r message= FALSE, warning=FALSE}
+w<-dataset_scaled[1:11]
+```
+
+
+Antes de aplicar el algoritmo k_means Vamos a aplicar el método hopkins que nos da  la probabilidad de un conjunto de datos tener estructura  interna o no (estructura aleatoria)
+
+```{r}
+# Estadístico H para el set de datos
+#Modificar el valor de n dependiendo del número escogido para m
+hopkins(data =w, n=30)
+```
+ Con el valor de H Intuimos que existe algun tipo de estructura
+Utilizamos tecnicas de reducción del tamaño(selección aleatoria)
+```{r}
+set.seed(20)
+m<-200
+x<-w[sample(nrow(w), m), ]
+```
+
+```{r}
+#Introducimos librerias necesarias
+library(dplyr)
+library(cluster)
+library(clustertend)
+library(colorspace, pos = 17)
+```
+
+
+
+VAmos aplicar el alogaritmo kmeans para 2,3,4 clusters
+```{r}
+fit2       <- kmeans(x, 2)
+y_cluster2 <- fit2$cluster
+
+fit3       <- kmeans(x, 3)
+y_cluster3 <- fit3$cluster
+
+fit4      <- kmeans(x, 4)
+y_cluster4 <- fit4$cluster
+```
+
+
+Para visualizar los clústers podemos usar la funcion clusplot. Vemos la agrupación con 2 clústers
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit2$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+
+con 3
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit3$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+y con 4
+```{r message= FALSE, warning=FALSE}
+clusplot(x, fit4$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+```
+
+Como se puede comprobar  aunque las variables   solo explican alrededor 54% de la variabilidad con dos clusteres vemos que existen dos grupos diferenciados.
+
+VAmos a comparar la clasificacion obtenida con una muestra aleatoria los datos reales de la  clasificacion de los vinos.
+```{r}
+head(y_cluster2,20)
+class(fit2)
+```
+Sabemos por la union de los datos que los indices a partir de  1599  corresponden a vinos  blancos.Visualmente vemos por ejemplo que para y cluster2 la agrupacion {1} Tinto {2}Blanco, Se corresponde  con un indice de  confianza muy alto. 
+Asi por la ley de laplace$  Calculamos,P(x)=\frac{sop(X)}{sop(T)}$ mas concretamente:
+
+```{r}
+z<-names(y_cluster2)
+z<-as.integer(z)
+
+```
+
+
+```{r}
+prob2<-0
+prob1<-0
+s1<-0
+s2<-0
+i<-0
+for (i in(i+1):(m)){ 
+     if(z[i]<=1359 && y_cluster2[i]==1){
+       prob2 <- prob2 +1;
+       s2<-s2+1
+                          }
+     else if (z[i]<=1359 && y_cluster2[i]==2){
+         s2<-s2+1 
+                          }
+     else if(z[i]>1359 && y_cluster2[i]==2){
+        prob1 <- prob1 +1;
+        s1<-s1+1  
+                          }
+      else{
+        s1<-s1+1
+                          }
+             
+                 }
+                                                    
+sprintf("La probbilidad de acierto/error para el vino blanco es  %g  por cien",prob2/s2*100)
+sprintf("La probbilidad de acierto/error para el vino tinto es  %g  por cien",prob1/s1*100)
+```
+Nota como no sabemos que número nos va asignar el alogaritmo a cada conjunto (1 o 2) entenderemos como  error para un resultado bajo  y como acierto para un porcentaje alto.
+
+
+Conclusiones:
+Los resultados han sido los esperados.
+Hemos explicado como funciona el alogaritmo hopkins,en este sentido es importante comprenderlo como un contraste de hipotesis , entre existe o no existe una posible estructura en los datos y  utilizarlo antes de proceder a realizar agrupaciones también es importante entender que los grupos mejor definidos  son aquellos que tienen una estructura aleatoria no uniforme, si las agrupaciones las realizamos  en estructuras no aleatorias  uniformes podemos obtener  agrupaciones artificiales que no tengan sentido. No es el caso porque la asociación que hemos obtenido es real.
+Hemos seleccionado una base de datos con ciertos atributos  uniendola con otra con los mismos atributos, las hemos seleccionado y hemos escogido al azar una muestra.Es muy importante seleccionar al azar muestras de tamaño reducido  en una base de datos con muchas entradas, porque obtenemos resultados que van mejorando segun n aumenta(ley fuerte de los grandes números) y sinplificamos el ejercicio ahorrando mucho tiempo de ejecución. Permitiendo mejores visualizaciones.
+Hemos preparado los datos para utilizar el alogaritmo k means, es muy importante normalizar con una escala apropiada los atributos para que el peso de algunos atributos no influya negativamente.
+Hemos visualizado los resultados con diferentes valores de k  y hemos comprobado que  la agrupación es la que buscavamos.El calculo de la calidad del agrupamiento es muy simple es decir aplicar la ley de laplace casos favorables entre casos totales y hemos conseguido porcentajes muy elevados.
+A partir de aqui pensamos que para agrupar los vinos por calidad sería necesario combimnar esta tecnicabcon tecnicas de regresión , obteniendo pesos para los atributos y escogiendo las variables mas influyentes.
+
+
+
+## 5. Representación de los resultados a partir de tablas y gráficas
+
+## 6. Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
+
+
